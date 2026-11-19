@@ -972,7 +972,9 @@ body.shop { background: #000; }
       const fill = new THREE.DirectionalLight(0xffffff, 1.0); fill.position.set(-2.5, 1, -3.5); scene.add(fill);
       const rim = new THREE.DirectionalLight(0xffffff, .5); rim.position.set(0, -2, 1.5); scene.add(rim);
 
-      const gltf = await new GLTFLoader().loadAsync('assets/jersey.glb');
+      // The mesh keeps its filename across revisions, so anyone who visited before
+      // would be served a stale one from cache. Bump this whenever decimate.mjs runs.
+      const gltf = await new GLTFLoader().loadAsync('assets/jersey.glb?v=2');
       let src = null; gltf.scene.traverse(o => { if (o.isMesh) src = o; });
       if (!src) throw new Error('no mesh in jersey.glb');
       src.geometry.computeVertexNormals();
