@@ -675,7 +675,15 @@ body.shop { background: #000; }
     return out.join('');
   }
 
-  const lastName = p => p.name.trim().split(/\s+/).pop();
+  // A nameplate carries the whole surname, particles included: Gavin St. Clair wears
+  // ST. CLAIR, not CLAIR. Walk back over any particles, never past the given name.
+  const PARTICLE = /^(st\.?|saint|van|von|de|del|della|den|der|di|da|du|la|le|mac|mc|o'|ter|ten)$/i;
+  const lastName = p => {
+    const parts = p.name.trim().split(/\s+/);
+    let i = parts.length - 1;
+    while (i > 1 && PARTICLE.test(parts[i - 1])) i--;
+    return parts.slice(i).join(' ');
+  };
   const money = n => '$' + n.toFixed(2);
 
   function jerseyCard(t, kit, interactive) {
@@ -1101,6 +1109,24 @@ body.shop { background: #000; }
       return c;
     },
 
+    // A kit's number colours are chosen for its body. Several remix sweaters put a
+    // contrasting sleeve on that body, and the number then disappears into it — so
+    // the sleeve fabric is sampled and the colours swapped if they do not read.
+    sleeveInk(g, p, x, y, w, h) {
+      const d = g.getImageData(Math.max(0, x | 0), Math.max(0, y | 0), Math.max(1, w | 0), Math.max(1, h | 0)).data;
+      let r = 0, gr = 0, b = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4) { r += d[i]; gr += d[i + 1]; b += d[i + 2]; n++; }
+      const bg = [r / n, gr / n, b / n];
+      const ratio = (c1, c2) => {
+        const a = lumOf(c1), b2 = lumOf(c2);
+        return (Math.max(a, b2) + .05) / (Math.min(a, b2) + .05);
+      };
+      for (const [fill, edge] of [[p.fill, p.edge], [p.edge, p.fill]]) {
+        if (ratio(rgbOf(fill), bg) >= 2.6) return { fill, edge };
+      }
+      return lumOf(bg) > .3 ? { fill: '#101010', edge: '#ffffff' } : { fill: '#ffffff', edge: '#101010' };
+    },
+
     // The front photo, which now ships without sleeve numbers, with the selected
     // player's number sewn onto both sleeves where the kit wore its own.
     async frontCanvas(t, kit, player) {
@@ -1109,7 +1135,7 @@ body.shop { background: #000; }
       g.drawImage(img, 0, 0);
       const sl = t.sleeves && t.sleeves[kit];
       if (!player || !sl) return c;
-      const b = t.boxes[kit].front, p = t.plates[kit];
+      const b = t.boxes[kit].front;
       const gx = b.x * c.width, gy = b.y * c.height, gw = b.w * c.width, gh = b.h * c.height;
       const num = String(player.num);
       const boxW = sl.w * gw, boxH = sl.h * gh;
@@ -1118,11 +1144,17 @@ body.shop { background: #000; }
       // a little inboard keeps them on fabric that faces the camera.
       const IN = .042;
       const left = gx + (sl.x + IN) * gw, right = gx + (1 - sl.x - sl.w - IN) * gw;   // mirrored
+      const p = JV.sleeveInk(g, t.plates[kit], left, gy + sl.y * gh, boxW, boxH);
       JV.stitch(g, c.width, c.height, JV.shadeOf(img), gg => {
         gg.textAlign = 'center'; gg.textBaseline = 'alphabetic';
         gg.lineJoin = 'round'; gg.miterLimit = 2;
         gg.fillStyle = p.fill; gg.strokeStyle = p.edge;
-        const fs = JV.fit(gg, num, boxW * 1.02, boxH * .94);
+        // The measured box says WHERE the kit wore its number, but not how big to
+        // draw one: the diff also picked up stripe differences, and a kit shot with a
+        // slim single digit would squash a two-digit one. So position comes from the
+        // measurement and the size is a consistent proportion of the sweater.
+        const capH = gh * .085;
+        const fs = JV.fit(gg, num, capH * 1.9, capH);
         gg.lineWidth = fs * .1;
         const baseY = gy + (sl.y + sl.h / 2) * gh + fs * JV.CAP / 2;
         for (const x of [left + boxW / 2, right + boxW / 2]) {
