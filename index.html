@@ -262,6 +262,7 @@ body.shop { background: #000; }
 
 .stage { position: relative; height: clamp(320px, 48vh, 520px); perspective: 1700px; user-select: none; }
 .rail { position: absolute; inset: 0; transform-style: preserve-3d; }
+.slot::before { content: ""; position: absolute; inset: 4% 0 0; background: radial-gradient(44% 34% at 50% 20%, rgba(255,186,110,.17), transparent 72%); pointer-events: none; }
 .slot { position: absolute; top: 0; left: 50%; height: 100%; aspect-ratio: .86; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.22,1,.36,1), opacity .45s, filter .45s; cursor: pointer; }
 .slot.o0 { transform: translateX(-50%); z-index: 3; cursor: grab; }
 .slot.o0.drag { cursor: grabbing; }
@@ -271,13 +272,14 @@ body.shop { background: #000; }
 .slot[data-off="-2"] { transform: translateX(calc(-50% - 106%)) translateZ(-480px) rotateY(34deg) scale(.44); opacity: .34; }
 .slot[data-off="2"]  { transform: translateX(calc(-50% + 106%)) translateZ(-480px) rotateY(-34deg) scale(.44); opacity: .34; }
 @media (max-width: 760px) { .slot[data-off] { display: none; } }
-.gl { position: absolute; inset: 0; z-index: 2; }
-.gl.on ~ .jersey { visibility: hidden; }
+.gl { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
+.gl.on ~ .rail .jersey { visibility: hidden; }
+.gl.on ~ .rail .slot::before { opacity: 0; }
 .jersey { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateY(var(--rot, 0deg)); }
 .jersey.anim { transition: transform .95s cubic-bezier(.3,.92,.28,1); }
 .jersey.spin { animation: jspin 19s linear infinite; }
 @keyframes jspin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
-.face { position: absolute; inset: 0; backface-visibility: hidden; overflow: hidden; border-radius: 16px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.face { position: absolute; inset: 0; backface-visibility: hidden; overflow: hidden; }
 .face.b { transform: rotateY(180deg); }
 .face img { position: absolute; display: block; }
 .plate { position: absolute; pointer-events: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,.42)); }
@@ -667,7 +669,7 @@ body.shop { background: #000; }
     const label = KITS.find(k => k[0] === kit)[1];
     const plate = interactive && shopPlayer ? twill(Lb, p, lastName(shopPlayer), shopPlayer.num) : '';
     const spin = interactive && shopSpin && !reduce ? ' spin' : '';
-    return `${interactive ? '<div class="gl"></div>' : ''}<div class="jersey${spin}" style="--rot:${shopRot}deg">
+    return `<div class="jersey${spin}" style="--rot:${shopRot}deg">
       <div class="face f"><img src="assets/${front}" style="${Lf.css}" alt="${esc(t.city)} ${esc(label)} jersey, front"></div>
       <div class="face b"><img src="assets/${t.backs[kit]}" style="${Lb.css}" alt="${esc(t.city)} ${esc(label)} jersey, back">${plate}</div>
     </div>`;
@@ -706,7 +708,7 @@ body.shop { background: #000; }
       </div></div></div>
       <div class="wrap shopmain">
         <div>
-          <div class="stage" id="stage"><div class="rail">
+          <div class="stage" id="stage"><div class="gl"></div><div class="rail">
             ${KITS.map(([k], i) => `<div class="slot${i === ki ? ' o0' : ''}"${i === ki ? '' : ` data-off="${i - ki}"`} data-kit="${k}">${jerseyCard(t, k, i === ki)}</div>`).join('')}
           </div></div>
           <div class="stagebar">
@@ -836,7 +838,7 @@ body.shop { background: #000; }
       setTimeout(() => { bag.textContent = was; }, 1700);
     });
     const host = stage.querySelector('.gl');
-    if (host) JV.mount(host, T[shopTeam], shopKit, shopPlayer);
+    if (host) JV.mount(host, T[shopTeam], shopPlayer);
 
     // drag the centre jersey to turn it
     const centre = stage.querySelector('.slot.o0');
@@ -868,16 +870,18 @@ body.shop { background: #000; }
     }
   }
 
-  // ---------- the 3D jersey ----------
-  // assets/jersey.glb is a real hockey sweater mesh (image-to-3D, then resampled by
-  // league/decimate.mjs). It carries no texture of its own: the shader projects the
-  // club's own front and back photographs straight down the Z axis, front half from
-  // the front shot and back half from the back shot, using the same silhouette boxes
-  // the flat view uses. The name and number are drawn into the back photo first, so
-  // they curve over the shoulders with the fabric.
+  // ---------- the 3D jersey stage ----------
+  // All three sweaters are one WebGL scene, so the carousel is a single lit shot
+  // rather than a 3D model flanked by two photographs on little black cards.
+  //
+  // assets/jersey.glb is a real hockey sweater (image-to-3D, cleaned up and resampled
+  // by league/decimate.mjs). It has no texture of its own: the shader projects each
+  // club's own front and back photographs down the Z axis through the silhouette
+  // boxes measured at build time. The name and number are painted into the back
+  // photo first, so they curve over the shoulders with the fabric.
   const JV = {
-    ok: false, ready: null, mesh: null, root: null, ren: null, scene: null, cam: null,
-    texCache: new Map(), frame: 0, last: 0, host: null, dispose: [],
+    ok: false, ready: null, geo: null, slots: [], ren: null, scene: null, cam: null,
+    imgs: new Map(), frame: 0, last: 0, host: null, kill: [],
 
     lib() {
       if (window.DHL3D) return Promise.resolve(window.DHL3D);
@@ -888,6 +892,39 @@ body.shop { background: #000; }
         addEventListener('dhl3dfail', () => { clearTimeout(t); rej(new Error('three.js failed')); }, { once: true });
       });
       return JV.ready;
+    },
+
+    material(THREE) {
+      return new THREE.ShaderMaterial({
+        uniforms: {
+          front: { value: null }, back: { value: null },
+          fBox: { value: new THREE.Vector4() }, bBox: { value: new THREE.Vector4() },
+          bbMin: { value: new THREE.Vector3() }, bbSize: { value: new THREE.Vector3(1, 1, 1) },
+          lightDir: { value: new THREE.Vector3(.35, .5, 1).normalize() },
+          tint: { value: 1 },
+        },
+        vertexShader: [
+          'varying vec3 vPos; varying vec3 vN;',
+          'void main(){ vPos = position; vN = normalize(normalMatrix * normal);',
+          '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        ].join('\n'),
+        fragmentShader: [
+          'uniform sampler2D front; uniform sampler2D back;',
+          'uniform vec4 fBox; uniform vec4 bBox; uniform vec3 bbMin; uniform vec3 bbSize;',
+          'uniform vec3 lightDir; uniform float tint;',
+          'varying vec3 vPos; varying vec3 vN;',
+          'void main(){',
+          '  float u = (vPos.x - bbMin.x) / bbSize.x;',
+          '  float v = (vPos.y - bbMin.y) / bbSize.y;',
+          '  vec3 cf = texture2D(front, vec2(fBox.x + u * fBox.z, fBox.y + v * fBox.w)).rgb;',
+          '  vec3 cb = texture2D(back,  vec2(bBox.x + (1.0 - u) * bBox.z, bBox.y + v * bBox.w)).rgb;',
+          '  vec3 c = mix(cb, cf, smoothstep(-0.018, 0.018, vPos.z));',
+          '  float lam = 0.64 + 0.36 * max(dot(normalize(vN), lightDir), 0.0);',
+          '  gl_FragColor = vec4(c * lam * tint, 1.0);',
+          '  #include <colorspace_fragment>',
+          '}',
+        ].join('\n'),
+      });
     },
 
     async build() {
@@ -905,56 +942,33 @@ body.shop { background: #000; }
       const rim = new THREE.DirectionalLight(0xffffff, .5); rim.position.set(0, -2, 1.5); scene.add(rim);
 
       const gltf = await new GLTFLoader().loadAsync('assets/jersey.glb');
-      let mesh = null; gltf.scene.traverse(o => { if (o.isMesh) mesh = o; });
-      if (!mesh) throw new Error('no mesh in jersey.glb');
-      mesh.geometry.computeVertexNormals();
-      mesh.geometry.computeBoundingBox();
-      const bb = mesh.geometry.boundingBox;
-      mesh.material = new THREE.ShaderMaterial({
-        uniforms: {
-          front: { value: null }, back: { value: null },
-          fBox: { value: new THREE.Vector4() }, bBox: { value: new THREE.Vector4() },
-          bbMin: { value: bb.min.clone() }, bbSize: { value: bb.max.clone().sub(bb.min) },
-          lightDir: { value: new THREE.Vector3(.35, .5, 1).normalize() },
-        },
-        vertexShader: [
-          'varying vec3 vPos; varying vec3 vN;',
-          'void main(){ vPos = position; vN = normalize(normalMatrix * normal);',
-          '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-        ].join('\n'),
-        fragmentShader: [
-          'uniform sampler2D front; uniform sampler2D back;',
-          'uniform vec4 fBox; uniform vec4 bBox; uniform vec3 bbMin; uniform vec3 bbSize; uniform vec3 lightDir;',
-          'varying vec3 vPos; varying vec3 vN;',
-          'void main(){',
-          '  float u = (vPos.x - bbMin.x) / bbSize.x;',
-          '  float v = (vPos.y - bbMin.y) / bbSize.y;',
-          '  vec3 cf = texture2D(front, vec2(fBox.x + u * fBox.z, fBox.y + v * fBox.w)).rgb;',
-          '  vec3 cb = texture2D(back,  vec2(bBox.x + (1.0 - u) * bBox.z, bBox.y + v * bBox.w)).rgb;',
-          '  vec3 c = mix(cb, cf, smoothstep(-0.018, 0.018, vPos.z));   // soften the seam at the silhouette',
-          '  float lam = 0.64 + 0.36 * max(dot(normalize(vN), lightDir), 0.0);',
-          '  gl_FragColor = vec4(c * lam, 1.0);',
-          '  #include <colorspace_fragment>',
-          '}',
-        ].join('\n'),
-        side: THREE.DoubleSide,
+      let src = null; gltf.scene.traverse(o => { if (o.isMesh) src = o; });
+      if (!src) throw new Error('no mesh in jersey.glb');
+      src.geometry.computeVertexNormals();
+      src.geometry.computeBoundingBox();
+      const bb = src.geometry.boundingBox;
+      JV.geo = src.geometry;
+
+      JV.slots = KITS.map(() => {
+        const pivot = new THREE.Group();
+        const m = new THREE.Mesh(JV.geo, JV.material(THREE));
+        m.material.uniforms.bbMin.value.copy(bb.min);
+        m.material.uniforms.bbSize.value.copy(bb.max.clone().sub(bb.min));
+        pivot.add(m); scene.add(pivot);
+        return { pivot, mesh: m };
       });
-      scene.add(gltf.scene);
-      Object.assign(JV, { ren, scene, cam, mesh, root: gltf.scene, ok: true });
+      Object.assign(JV, { ren, scene, cam, ok: true });
       return THREE;
     },
 
-    async image(file) {
-      if (JV.texCache.has(file)) return JV.texCache.get(file);
-      const p = new Promise((res, rej) => {
-        const i = new Image(); i.crossOrigin = 'anonymous';
-        i.onload = () => res(i); i.onerror = rej; i.src = 'assets/' + file;
-      });
-      JV.texCache.set(file, p);
-      return p;
+    image(file) {
+      if (!JV.imgs.has(file)) JV.imgs.set(file, new Promise((res, rej) => {
+        const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = 'assets/' + file;
+      }));
+      return JV.imgs.get(file);
     },
 
-    // The back photo with the player's name and number painted on, as a canvas.
+    // The back photo with the player's name and number painted on.
     async backCanvas(t, kit, player) {
       const img = await JV.image(t.backs[kit]);
       const c = document.createElement('canvas');
@@ -968,15 +982,15 @@ body.shop { background: #000; }
         g.textAlign = 'center'; g.textBaseline = 'alphabetic';
         g.lineJoin = 'round'; g.miterLimit = 2;
         g.fillStyle = p.fill; g.strokeStyle = p.edge;
+        const font = px => { g.font = '400 ' + px + 'px "Archivo Black", "Arial Black", sans-serif'; };
 
         const last = lastName(player).toUpperCase();
         let capN = gh * .055, fs = capN / CAP;
-        g.font = '400 ' + fs + 'px "Archivo Black", "Arial Black", sans-serif';
+        font(fs);
         try { g.letterSpacing = (fs * .06).toFixed(1) + 'px'; } catch (e) { }
         const maxW = gw * .62, w = g.measureText(last).width;
         if (w > maxW) {
-          fs *= maxW / w; capN = fs * CAP;
-          g.font = '400 ' + fs + 'px "Archivo Black", "Arial Black", sans-serif';
+          fs *= maxW / w; capN = fs * CAP; font(fs);
           try { g.letterSpacing = (fs * .06).toFixed(1) + 'px'; } catch (e) { }
         }
         const nameY = gy + gh * .205 + capN;
@@ -984,7 +998,7 @@ body.shop { background: #000; }
         g.strokeText(last, cx, nameY); g.fillText(last, cx, nameY);
 
         const capD = gh * .235, fsD = capD / CAP;
-        g.font = '400 ' + fsD + 'px "Archivo Black", "Arial Black", sans-serif';
+        font(fsD);
         try { g.letterSpacing = '0px'; } catch (e) { }
         const numY = gy + gh * .318 + capD;
         g.lineWidth = fsD * .085;
@@ -993,27 +1007,58 @@ body.shop { background: #000; }
       return c;
     },
 
-    async skin(t, kit, player) {
-      const THREE = await JV.lib().then(l => l.THREE);
-      const [fImg, bCan] = await Promise.all([JV.image(t.fronts[kit]), JV.backCanvas(t, kit, player)]);
-      const u = JV.mesh.material.uniforms;
-      JV.dispose.forEach(x => x.dispose()); JV.dispose = [];
-      const fT = new THREE.Texture(fImg); fT.colorSpace = THREE.SRGBColorSpace; fT.needsUpdate = true;
-      const bT = new THREE.CanvasTexture(bCan); bT.colorSpace = THREE.SRGBColorSpace;
-      fT.anisotropy = bT.anisotropy = JV.ren.capabilities.getMaxAnisotropy();
-      u.front.value = fT; u.back.value = bT;
-      JV.dispose = [fT, bT];
-      const box = b => new THREE.Vector4(b.x, 1 - b.y - b.h, b.w, b.h);
-      u.fBox.value.copy(box(t.boxes[kit].front));
-      u.bBox.value.copy(box(t.boxes[kit].back));
+    // A generated garment never traces the photographed one exactly, so sample a
+    // little inside the silhouette: the model's edge then lands on fabric rather
+    // than the black the jersey was shot against.
+    boxOf(THREE, b) {
+      const I = .028;
+      return new THREE.Vector4(b.x + b.w * I, (1 - b.y - b.h) + b.h * I, b.w * (1 - I * 2), b.h * (1 - I * 2));
     },
 
-    async mount(host, t, kit, player) {
+    async skin(t, player) {
+      const THREE = (await JV.lib()).THREE;
+      JV.kill.forEach(x => x.dispose()); JV.kill = [];
+      await Promise.all(KITS.map(async ([kit], i) => {
+        const [fImg, bCan] = await Promise.all([JV.image(t.fronts[kit]), JV.backCanvas(t, kit, player)]);
+        const u = JV.slots[i].mesh.material.uniforms;
+        const fT = new THREE.Texture(fImg); fT.colorSpace = THREE.SRGBColorSpace; fT.needsUpdate = true;
+        const bT = new THREE.CanvasTexture(bCan); bT.colorSpace = THREE.SRGBColorSpace;
+        fT.anisotropy = bT.anisotropy = JV.ren.capabilities.getMaxAnisotropy();
+        u.front.value = fT; u.back.value = bT;
+        u.fBox.value.copy(JV.boxOf(THREE, t.boxes[kit].front));
+        u.bBox.value.copy(JV.boxOf(THREE, t.boxes[kit].back));
+        JV.kill.push(fT, bT);
+      }));
+    },
+
+    // Coverflow, in world units: the chosen sweater square on, the others turned
+    // away and pushed back. How far out they sit depends on how wide the stage is.
+    layout() {
+      if (!JV.ok || !JV.host) return;
+      const r = JV.host.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      const halfW = Math.tan(JV.cam.fov * Math.PI / 360) * JV.cam.position.z * (r.width / r.height);
+      // How many sweaters fit beside the chosen one, and how far out they sit, both
+      // come from the stage: a narrow stage shows fewer rather than clipping them.
+      const show = halfW < .78 ? 0 : halfW < 1.05 ? 1 : 2;
+      const side = Math.min(1, Math.max(.46, (halfW - .2) / Math.max(1, show)));
+      const ki = KITS.findIndex(k => k[0] === shopKit);
+      JV.slots.forEach((s, i) => {
+        const off = i - ki, a = Math.abs(off);
+        s.pivot.visible = a <= show;
+        s.pivot.position.set(off * side, 0, off === 0 ? 0 : -.7);
+        s.pivot.scale.setScalar(off === 0 ? 1 : a === 1 ? .58 : .42);
+        s.mesh.material.uniforms.tint.value = off === 0 ? 1 : .5;
+        if (off !== 0) s.pivot.rotation.y = -Math.sign(off) * .5;
+      });
+    },
+
+    async mount(host, t, player) {
       try {
         await document.fonts.load('400 120px "Archivo Black"').catch(() => { });
         await JV.build();
-        await JV.skin(t, kit, player);
-      } catch (e) { JV.ok = false; return false; }   // the photo flip card stays visible
+        await JV.skin(t, player);
+      } catch (e) { JV.ok = false; return false; }   // the photo cards stay visible
       if (!host.isConnected) return false;
       JV.host = host;
       host.appendChild(JV.ren.domElement);
@@ -1029,6 +1074,7 @@ body.shop { background: #000; }
       if (!r.width || !r.height) return;
       JV.ren.setSize(r.width, r.height, false);
       JV.cam.aspect = r.width / r.height; JV.cam.updateProjectionMatrix();
+      JV.layout();
     },
 
     loop() {
@@ -1038,8 +1084,9 @@ body.shop { background: #000; }
         const dt = JV.last ? Math.min((now - JV.last) / 1000, .05) : 0;
         JV.last = now;
         if (shopSpin && !reduce) { shopRot += dt * 19; shopAim = shopRot; }
-        else shopRot += (shopAim - shopRot) * (reduce ? 1 : Math.min(1, dt * 7));   // glide onto the target face
-        JV.root.rotation.y = shopRot * Math.PI / 180;
+        else shopRot += (shopAim - shopRot) * (reduce ? 1 : Math.min(1, dt * 7));
+        const ki = KITS.findIndex(k => k[0] === shopKit);
+        if (JV.slots[ki]) JV.slots[ki].pivot.rotation.y = shopRot * Math.PI / 180;
         JV.ren.render(JV.scene, JV.cam);
         JV.frame = requestAnimationFrame(step);
       };
