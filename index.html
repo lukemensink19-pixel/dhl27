@@ -18,7 +18,7 @@
 <title>Davinky Hockey League</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&family=Archivo+Black&display=swap">
 <style>
 /* Layout: the site opens black, lifts into the rink film, then settles into a
    1120px column of arena-dark panels. Team colour enters through --team. */
@@ -32,6 +32,8 @@
   --ice: #6fc5ff;
   --gold: #f2c14e;
   --team: #6fc5ff;
+  --acc: #6fc5ff;
+  --acc-ink: #05070b;
   --disp: "Barlow Condensed", "Haettenschweiler", Impact, sans-serif;
   --body: "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   color-scheme: dark;
@@ -227,6 +229,93 @@ tbody tr:hover { background: rgba(255,255,255,.03); }
 footer { border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; padding-block: 18px 30px; margin-top: 34px; }
 .loading { padding: 70px 0; text-align: center; color: var(--dim); font-family: var(--disp); letter-spacing: .18em; text-transform: uppercase; }
 @media (prefers-reduced-motion: reduce) { .tcard { animation: none; opacity: 1; transform: none; } * { transition: none !important; } }
+/* ---------- team store ---------- */
+/* Shop pages sit on true black: the crest transition lands on it, and every
+   garment was photographed on black, so the jersey appears to float in the page. */
+body.shop { background: #000; }
+
+#sx { position: fixed; inset: 0; z-index: 78; background: #000; opacity: 0; pointer-events: none; perspective: 1000px; }
+#sx[hidden] { display: none !important; }
+#sx .ring { position: absolute; width: 0; height: 0; border-radius: 50%; border: 2px solid #fff; opacity: 0; }
+#sx .sxc { position: absolute; border-radius: 50%; background: #fff; object-fit: contain; padding: 5px; }
+#sx span.sxc { display: grid; place-items: center; font-family: var(--disp); font-weight: 700; }
+
+.shophead { position: relative; overflow: hidden; border-bottom: 1px solid rgba(255,255,255,.08); }
+.shophead::before { content: ""; position: absolute; left: -10%; right: -10%; top: -150%; height: 260%; background: radial-gradient(50% 50% at 50% 50%, var(--team) 0%, transparent 70%); opacity: .3; }
+.shophead .in { position: relative; display: flex; align-items: center; gap: 15px; padding: 22px 0 18px; }
+.shophead h1 { font-size: clamp(24px, 4.4vw, 40px); line-height: .94; }
+.shophead .crest { flex: none; }
+.shophead .back { margin-left: auto; font-family: var(--disp); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+.shophead .back:hover { color: var(--fg); }
+
+.shopgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(186px, 1fr)); gap: 14px; }
+.scard { position: relative; display: grid; justify-items: center; gap: 11px; padding: 30px 14px 20px; border-radius: 14px; background: #06080c; border: 1px solid rgba(255,255,255,.08); overflow: hidden; cursor: pointer; text-align: center; opacity: 0; animation: riseS .5s cubic-bezier(.22,1,.36,1) forwards; }
+.scard::before { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 50% -10%, var(--tc) 0%, transparent 64%); opacity: .36; transition: opacity .25s; }
+.scard > * { position: relative; }
+.scard h3 { font-size: 19px; line-height: 1; }
+.scard:hover { border-color: var(--tc); }
+.scard:hover::before { opacity: .66; }
+@keyframes riseS { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+.shopmain { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 26px; align-items: start; padding-top: 18px; }
+@media (max-width: 900px) { .shopmain { grid-template-columns: minmax(0, 1fr); gap: 18px; } }
+
+.stage { position: relative; height: clamp(320px, 48vh, 520px); perspective: 1700px; user-select: none; }
+.rail { position: absolute; inset: 0; transform-style: preserve-3d; }
+.slot { position: absolute; top: 0; left: 50%; height: 100%; aspect-ratio: .86; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.22,1,.36,1), opacity .45s, filter .45s; cursor: pointer; }
+.slot.o0 { transform: translateX(-50%); z-index: 3; cursor: grab; }
+.slot.o0.drag { cursor: grabbing; }
+.slot[data-off] { opacity: .55; filter: brightness(.68); z-index: 1; }
+.slot[data-off="-1"] { transform: translateX(calc(-50% - 62%)) translateZ(-340px) rotateY(30deg) scale(.58); }
+.slot[data-off="1"]  { transform: translateX(calc(-50% + 62%)) translateZ(-340px) rotateY(-30deg) scale(.58); }
+.slot[data-off="-2"] { transform: translateX(calc(-50% - 106%)) translateZ(-480px) rotateY(34deg) scale(.44); opacity: .34; }
+.slot[data-off="2"]  { transform: translateX(calc(-50% + 106%)) translateZ(-480px) rotateY(-34deg) scale(.44); opacity: .34; }
+@media (max-width: 760px) { .slot[data-off] { display: none; } }
+.jersey { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateY(var(--rot, 0deg)); }
+.jersey.anim { transition: transform .95s cubic-bezier(.3,.92,.28,1); }
+.jersey.spin { animation: jspin 19s linear infinite; }
+@keyframes jspin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+.face { position: absolute; inset: 0; backface-visibility: hidden; overflow: hidden; border-radius: 16px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.face.b { transform: rotateY(180deg); }
+.face img { position: absolute; display: block; }
+.plate { position: absolute; pointer-events: none; filter: drop-shadow(0 2px 3px rgba(0,0,0,.42)); }
+.plate svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.plate text { font-family: "Archivo Black", "Arial Black", var(--disp); text-anchor: middle; paint-order: stroke fill; stroke-linejoin: round; }
+
+.stagebar { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.sbtn { font-family: var(--disp); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); background: rgba(255,255,255,.05); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.sbtn:hover { color: var(--fg); }
+.sbtn[aria-pressed="true"], .sbtn.on { color: var(--acc-ink); background: var(--acc); border-color: var(--acc); }
+
+.kittabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.kittab { position: relative; border: 1px solid var(--line); border-radius: 10px; background: #07090e; padding: 9px 8px; cursor: pointer; text-align: left; overflow: hidden; }
+.kittab b { display: block; font-family: var(--disp); font-size: 13px; letter-spacing: .07em; text-transform: uppercase; }
+.kittab span { font-size: 11.5px; color: var(--dim); }
+.kittab[aria-pressed="true"] { border-color: var(--acc); background: #0b1016; }
+.kittab[aria-pressed="true"]::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--acc); }
+
+.buybox { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); padding: 16px; }
+.buybox h2 { font-size: 22px; line-height: 1; }
+.price { font-family: var(--disp); font-size: 27px; font-weight: 700; margin-top: 2px; }
+.price s { font-size: 15px; color: var(--dim); font-weight: 500; margin-left: 8px; }
+.custom { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 13px; }
+.psearch { width: 100%; background: #060a0f; border: 1px solid var(--line); border-radius: 8px; color: var(--fg); font: inherit; font-size: 13.5px; padding: 8px 10px; margin: 8px 0; }
+.psearch:focus { outline: none; border-color: var(--acc); }
+.plist { max-height: 238px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+.prow { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; border-bottom: 1px solid rgba(156,180,214,.07); color: inherit; font: inherit; padding: 7px 10px; cursor: pointer; text-align: left; }
+.prow:last-child { border-bottom: 0; }
+.prow:hover { background: rgba(255,255,255,.045); }
+.prow[aria-pressed="true"] { background: var(--acc); color: var(--acc-ink); font-weight: 600; }
+.prow .n { font-family: var(--disp); font-size: 15px; width: 26px; flex: none; font-variant-numeric: tabular-nums; }
+.prow .o { margin-left: auto; font-size: 12px; opacity: .72; }
+.bag { display: block; width: 100%; margin-top: 13px; border: 0; border-radius: 9px; background: var(--acc); color: var(--acc-ink); font-family: var(--disp); font-size: 16px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; padding: 12px; cursor: pointer; }
+.bag:hover { filter: brightness(1.08); }
+.fineprint { margin-top: 9px; font-size: 11.5px; color: var(--dim); line-height: 1.45; }
+
+@media (prefers-reduced-motion: reduce) {
+  .jersey.spin { animation: none; }
+  .scard { opacity: 1; animation: none; }
+}
 </style>
 </head>
 <body>
@@ -241,6 +330,7 @@ footer { border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; 
 <main id="app"><div class="loading">Loading the league…</div></main>
 <footer class="wrap"><div id="foot"></div></footer>
 <div id="fx" aria-hidden="true"><div class="flood"></div></div>
+<div id="sx" hidden aria-hidden="true"><div class="ring"></div></div>
 <div id="intro" hidden>
   <div class="lock">
     <div class="mono">DH<i>L</i></div>
@@ -253,9 +343,9 @@ footer { border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; 
 
 <script>
 (function () {
-  const app = document.getElementById('app'), fx = document.getElementById('fx'), intro = document.getElementById('intro');
+  const app = document.getElementById('app'), fx = document.getElementById('fx'), intro = document.getElementById('intro'), sx = document.getElementById('sx');
   const GAME_URL = 'https://lukemensink19-pixel.github.io/dhl27/play/';
-  const ROUTES = [['home', 'Home'], ['standings', 'Standings'], ['teams', 'Teams'], ['players', 'Players'], ['classic', 'Remix Classic']];
+  const ROUTES = [['home', 'Home'], ['standings', 'Standings'], ['teams', 'Teams'], ['players', 'Players'], ['classic', 'Remix Classic'], ['shop', 'Shop']];
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let D, T = {};
@@ -268,8 +358,28 @@ footer { border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; 
   const tline = (id, o = {}) => `<a class="tline" href="#team-${id}">${crest(id, o.sm ? 'sm' : '')}<span class="nm">${o.abbr ? `<span class="abbr">${esc(T[id].abbr)}</span>` : `<b>${esc(o.full ? T[id].city + ' ' + T[id].name : T[id].name)}</b>`}</span></a>`;
   const arenaImg = id => T[id].hasArenaImg ? `assets/arena-${id}.jpg` : null;
   const remixImg = id => `assets/remix-${id}.webp`;
-  const paint = id => app.style.setProperty('--team', T[id].primary);
-  const unpaint = () => app.style.setProperty('--team', 'var(--ice)');
+  const rgbOf = h => { const n = parseInt(h.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
+  const lumOf = c => { const f = c.map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * f[0] + .7152 * f[1] + .0722 * f[2]; };
+  const hexOf = c => '#' + c.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+  // Half the clubs wear near-black, so buttons use the brighter club colour, lifted
+  // until it carries text. --team stays exact for glows and rules.
+  function accentOf(t) {
+    let c = rgbOf(t.primary); const s2 = rgbOf(t.secondary);
+    if (lumOf(s2) > lumOf(c)) c = s2;
+    for (let i = 0; i < 24 && lumOf(c) < .18; i++) c = c.map(v => v + (255 - v) * .12);
+    return { c: hexOf(c), ink: lumOf(c) > .34 ? '#05070b' : '#ffffff' };
+  }
+  const paint = id => {
+    const a = accentOf(T[id]);
+    app.style.setProperty('--team', T[id].primary);
+    app.style.setProperty('--acc', a.c);
+    app.style.setProperty('--acc-ink', a.ink);
+  };
+  const unpaint = () => {
+    app.style.setProperty('--team', 'var(--ice)');
+    app.style.setProperty('--acc', 'var(--ice)');
+    app.style.setProperty('--acc-ink', '#05070b');
+  };
   const tierOf = ovr => (D.tiers.find(t => ovr >= t[0]) || D.tiers[D.tiers.length - 1]);
   const diffColor = d => /^\+/.test(d) ? '#4ade80' : /^-/.test(d) ? '#f87171' : 'inherit';
 
@@ -374,7 +484,7 @@ footer { border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; 
           </div>
           <div style="margin-left:auto;display:flex;flex-direction:column;gap:8px;align-items:flex-end">
             <div style="text-align:right"><div class="disp" style="font-size:44px;line-height:1">${r.ovr}</div><div class="eyebrow" style="color:rgba(255,255,255,.75)">Team rating</div></div>
-            <a class="btn" href="#team-${id}" data-store="1">Team Store · Soon</a>
+            <a class="btn" href="#shop-${id}">Team Store →</a>
           </div>
         </div>
       </div>
@@ -491,6 +601,252 @@ footer { border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; 
     </div>`;
   };
 
+  // ---------- team store ----------
+  // Every jersey photo was framed differently, so each face is positioned from the
+  // silhouette box measured at build time. That makes the front and the back of the
+  // 3D card the same on-screen garment, and lets the name and number sit on fabric.
+  const SLOT_A = 0.86;                       // slot width / slot height
+  const KITS = [['home', 'Home'], ['away', 'Away'], ['remix', 'Hometown Remix']];
+  let shopTeam = null, shopKit = 'home', shopPlayer = null, shopQuery = '', shopRot = 0, shopSpin = true;
+
+  // Where the garment lands inside a slot, in slot-height units.
+  function layout(box) {
+    const R = box.iw / box.ih;
+    const hi = Math.min(.96 * SLOT_A / (box.w * R), .96 / box.h);
+    const wi = hi * R, gw = box.w * wi, gh = box.h * hi;
+    const left = SLOT_A / 2 - (box.x + box.w / 2) * wi, top = .5 - (box.y + box.h / 2) * hi;
+    const pw = v => (v / SLOT_A * 100).toFixed(3) + '%', ph = v => (v * 100).toFixed(3) + '%';
+    return {
+      css: `left:${pw(left)};top:${ph(top)};width:${pw(wi)};height:${ph(hi)}`,
+      g: { x: (SLOT_A - gw) / 2, y: (1 - gh) / 2, w: gw, h: gh }, pw, ph,
+    };
+  }
+
+  // Twill name bar and number, drawn as SVG so the outline stays crisp at any size.
+  function twill(L, plate, last, num) {
+    const { g, pw, ph } = L, out = [];
+    const rect = (x, y, w, h) => `left:${pw(x)};top:${ph(y)};width:${pw(w)};height:${ph(h)}`;
+    if (last) {
+      const w = g.w * .58, h = w / 7 / SLOT_A, fs = Math.min(104, 640 / Math.max(2, last.length * .72));
+      out.push(`<div class="plate" style="${rect(g.x + (g.w - w) / 2, g.y + g.h * .212, w, h)}">
+        <svg viewBox="0 0 700 100" preserveAspectRatio="xMidYMid meet"><text x="350" y="87" font-size="${fs.toFixed(1)}"
+          letter-spacing="${(fs * .06).toFixed(1)}" fill="${plate.fill}" stroke="${plate.edge}" stroke-width="${(fs * .07).toFixed(1)}"
+        >${esc(last.toUpperCase())}</text></svg></div>`);
+    }
+    if (num != null) {
+      const h = g.h * .255, w = h * 1.5 * SLOT_A;
+      out.push(`<div class="plate" style="${rect(g.x + (g.w - w) / 2, g.y + g.h * .318, w, h)}">
+        <svg viewBox="0 0 150 100" preserveAspectRatio="xMidYMid meet"><text x="75" y="90" font-size="112"
+          fill="${plate.fill}" stroke="${plate.edge}" stroke-width="8">${esc(String(num))}</text></svg></div>`);
+    }
+    return out.join('');
+  }
+
+  const lastName = p => p.name.trim().split(/\s+/).pop();
+  const money = n => '$' + n.toFixed(2);
+
+  function jerseyCard(t, kit, interactive) {
+    const fb = t.boxes[kit], front = t.fronts[kit];
+    const Lf = layout(fb.front), Lb = layout(fb.back), p = t.plates[kit];
+    const label = KITS.find(k => k[0] === kit)[1];
+    const plate = interactive && shopPlayer ? twill(Lb, p, lastName(shopPlayer), shopPlayer.num) : '';
+    const spin = interactive && shopSpin && !reduce ? ' spin' : '';
+    return `<div class="jersey${spin}" style="--rot:${shopRot}deg">
+      <div class="face f"><img src="assets/${front}" style="${Lf.css}" alt="${esc(t.city)} ${esc(label)} jersey, front"></div>
+      <div class="face b"><img src="assets/${t.backs[kit]}" style="${Lb.css}" alt="${esc(t.city)} ${esc(label)} jersey, back">${plate}</div>
+    </div>`;
+  }
+
+  V.shop = () => {
+    unpaint();
+    return `<div class="shophead"><div class="wrap"><div class="in">
+        <div><div class="eyebrow">Official league shop</div><h1>Pick your club</h1></div>
+        <a class="back" href="#teams">All teams →</a>
+      </div></div></div>
+      <div class="wrap" style="padding-top:18px">
+        <div class="shopgrid">
+          ${D.teams.map((t, i) => `<a class="scard" href="#shop-${t.id}" data-shop="${t.id}" style="--tc:${t.primary};animation-delay:${i * 50}ms">
+            ${crest(t.id, 'lg')}
+            <span><h3>${esc(t.city)}</h3><span class="sub eyebrow">${esc(t.name)}</span></span>
+          </a>`).join('')}
+        </div>
+        <p class="small dim" style="margin-top:16px">Jerseys first. Hats, hoodies and pucks are next.</p>
+      </div>`;
+  };
+
+  V.store = id => {
+    const t = T[id]; if (!t) return V.shop();
+    if (shopTeam !== id) { shopTeam = id; shopKit = 'home'; shopPlayer = null; shopQuery = ''; shopRot = 0; shopSpin = true; }
+    paint(id);
+    const roster = t.roster.slice().sort((a, b) => a.num - b.num);
+    const q = shopQuery.trim().toLowerCase();
+    const shown = q ? roster.filter(p => p.name.toLowerCase().includes(q) || String(p.num) === q) : roster;
+    const ki = KITS.findIndex(k => k[0] === shopKit);
+    const base = D.store.price[shopKit], total = base + (shopPlayer ? D.store.customPrice : 0);
+    return `<div class="shophead"><div class="wrap"><div class="in">
+        ${crest(id, 'lg')}
+        <div style="min-width:0"><div class="eyebrow">Official team store</div><h1>${esc(t.city)} ${esc(t.name)}</h1></div>
+        <a class="back" href="#shop">All stores →</a>
+      </div></div></div>
+      <div class="wrap shopmain">
+        <div>
+          <div class="stage" id="stage"><div class="rail">
+            ${KITS.map(([k], i) => `<div class="slot${i === ki ? ' o0' : ''}"${i === ki ? '' : ` data-off="${i - ki}"`} data-kit="${k}">${jerseyCard(t, k, i === ki)}</div>`).join('')}
+          </div></div>
+          <div class="stagebar">
+            <button class="sbtn" type="button" data-face="front">Front</button>
+            <button class="sbtn" type="button" data-face="back">Back</button>
+            <button class="sbtn" type="button" id="spinBtn" aria-pressed="${shopSpin}">Auto-spin</button>
+            <span class="small dim" style="margin-left:4px">Drag the jersey to turn it</span>
+          </div>
+        </div>
+        <aside class="buybox">
+          <div class="kittabs">
+            ${KITS.map(([k, label]) => `<button class="kittab" type="button" data-kit="${k}" aria-pressed="${k === shopKit}">
+              <b>${esc(label === 'Hometown Remix' ? 'Remix' : label)}</b><span>${money(D.store.price[k])}</span></button>`).join('')}
+          </div>
+          <div class="eyebrow">Authentic Pro · adidas</div>
+          <h2>${esc(KITS[ki][1])} Jersey</h2>
+          <div class="price">${money(total)}${shopPlayer ? `<s>${money(base)} blank</s>` : ''}</div>
+          <div class="custom">
+            <div class="eyebrow">Customize · +${money(D.store.customPrice)}</div>
+            <input class="psearch" id="pq" type="search" placeholder="Search the roster" value="${esc(shopQuery)}" autocomplete="off">
+            <div class="plist">
+              <button class="prow" type="button" data-player="" aria-pressed="${!shopPlayer}"><span class="n">—</span><span>Blank · no customization</span></button>
+              ${shown.map(p => `<button class="prow" type="button" data-player="${p.num}|${esc(p.name)}" aria-pressed="${shopPlayer && shopPlayer.num === p.num && shopPlayer.name === p.name}">
+                <span class="n">${p.num}</span><span>${esc(p.name)}</span><span class="o">${p.ovr}</span></button>`).join('')}
+              ${shown.length ? '' : '<div class="prow dim">No player by that name.</div>'}
+            </div>
+            ${shopPlayer ? `<p class="fineprint">Back of the sweater: <b>${esc(lastName(shopPlayer).toUpperCase())}</b> · <b>${shopPlayer.num}</b></p>` : ''}
+          </div>
+          <button class="bag" type="button" id="bagBtn">Add to bag</button>
+          <p class="fineprint">Customized sweaters are final sale. Prices are part of the DHL fan project and nothing here actually ships.</p>
+        </aside>
+      </div>`;
+  };
+
+  // The crest transition into a storefront: black, then the mark turns and floods out.
+  function storeBurst(card, id, go) {
+    if (reduce) return go();
+    const mark = card.querySelector('.crest'), r = mark.getBoundingClientRect(), t = T[id];
+    sx.hidden = false;
+    const clone = mark.cloneNode(true);
+    clone.classList.add('sxc'); clone.classList.remove('crest', 'lg');
+    clone.style.cssText = `left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;font-size:${r.width * .38}px`;
+    sx.appendChild(clone);
+    const ring = sx.querySelector('.ring');
+    const cx = innerWidth / 2, cy = Math.min(innerHeight / 2, 340);
+    const far = Math.hypot(innerWidth, innerHeight) * 1.1;
+    ring.style.cssText = `left:${cx}px;top:${cy}px;border-color:${t.primary}`;
+    sx.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: 'ease-out', fill: 'forwards' });
+    ring.animate([
+      { width: 0, height: 0, margin: '0', opacity: 0, offset: 0 },
+      { opacity: .9, offset: .25 },
+      { width: far + 'px', height: far + 'px', margin: `${-far / 2}px 0 0 ${-far / 2}px`, opacity: 0 },
+    ], { duration: 900, delay: 320, easing: 'cubic-bezier(.2,.7,.3,1)', fill: 'forwards' });
+    const a = clone.animate([
+      { transform: 'translate(0,0) rotateY(0deg) scale(1)', opacity: 1 },
+      { transform: `translate(${cx - r.left - r.width / 2}px,${cy - r.top - r.height / 2}px) rotateY(360deg) scale(3.2)`, opacity: 1, offset: .62 },
+      { transform: `translate(${cx - r.left - r.width / 2}px,${cy - r.top - r.height / 2}px) rotateY(540deg) scale(10)`, opacity: 0 },
+    ], { duration: 1080, easing: 'cubic-bezier(.5,0,.22,1)', fill: 'forwards' });
+    a.onfinish = () => {
+      go();
+      const out = sx.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, easing: 'ease-out', fill: 'forwards' });
+      out.onfinish = () => {
+        sx.hidden = true; clone.remove();
+        sx.getAnimations().forEach(x => x.cancel()); ring.getAnimations().forEach(x => x.cancel());
+      };
+    };
+  }
+
+  // Re-render only the stage and the buy box, so typing in the search keeps focus.
+  function redrawStore() {
+    const keep = document.activeElement, atSearch = keep && keep.id === 'pq', caret = atSearch ? keep.selectionStart : 0;
+    app.innerHTML = V.store(shopTeam);
+    wire();
+    if (atSearch) { const f = document.getElementById('pq'); if (f) { f.focus(); try { f.setSelectionRange(caret, caret); } catch (e) { } } }
+  }
+
+  function setRot(deg, animate) {
+    const j = app.querySelector('.slot.o0 .jersey'); if (!j) return;
+    shopRot = deg; shopSpin = false;
+    j.classList.remove('spin');
+    j.classList.toggle('anim', !!animate);
+    j.style.setProperty('--rot', deg + 'deg');
+    const b = document.getElementById('spinBtn'); if (b) b.setAttribute('aria-pressed', 'false');
+  }
+
+  function wireStore() {
+    const stage = document.getElementById('stage'); if (!stage) return;
+    stage.querySelectorAll('.slot').forEach(s => s.addEventListener('click', e => {
+      if (s.classList.contains('o0') || s.dataset.dragged) return;
+      shopKit = s.dataset.kit; shopRot = 0; shopSpin = true; redrawStore();
+    }));
+    app.querySelectorAll('.kittab').forEach(b => b.addEventListener('click', () => {
+      shopKit = b.dataset.kit; shopRot = 0; shopSpin = true; redrawStore();
+    }));
+    app.querySelectorAll('[data-face]').forEach(b => b.addEventListener('click', () => {
+      const turns = Math.round(shopRot / 360);
+      setRot(turns * 360 + (b.dataset.face === 'back' ? 180 : 0), true);
+    }));
+    const sb = document.getElementById('spinBtn');
+    if (sb) sb.addEventListener('click', () => {
+      shopSpin = !shopSpin; shopRot = 0;
+      const j = app.querySelector('.slot.o0 .jersey');
+      sb.setAttribute('aria-pressed', String(shopSpin));
+      if (!j) return;
+      j.classList.remove('anim');
+      j.style.setProperty('--rot', '0deg');
+      j.classList.toggle('spin', shopSpin && !reduce);
+    });
+    const q = document.getElementById('pq');
+    if (q) q.addEventListener('input', e => { shopQuery = e.target.value; redrawStore(); });
+    app.querySelectorAll('[data-player]').forEach(b => b.addEventListener('click', () => {
+      const v = b.dataset.player;
+      if (!v) { shopPlayer = null; shopRot = 0; shopSpin = true; redrawStore(); return; }
+      const [num, ...rest] = v.split('|');
+      shopPlayer = { num: +num, name: rest.join('|') };
+      shopSpin = false; shopRot = 540;             // one full turn, settling on the back
+      redrawStore();
+      const j = app.querySelector('.slot.o0 .jersey');
+      if (j && !reduce) { j.style.setProperty('--rot', '180deg'); requestAnimationFrame(() => { j.classList.add('anim'); j.style.setProperty('--rot', '540deg'); }); }
+    }));
+    const bag = document.getElementById('bagBtn');
+    if (bag) bag.addEventListener('click', () => {
+      const was = bag.textContent;
+      bag.textContent = 'Checkout coming soon';
+      setTimeout(() => { bag.textContent = was; }, 1700);
+    });
+    // drag the centre jersey to turn it
+    const centre = stage.querySelector('.slot.o0');
+    if (centre) {
+      let id0 = null, x0 = 0, r0 = 0, moved = false;
+      centre.addEventListener('pointerdown', e => {
+        id0 = e.pointerId; x0 = e.clientX; r0 = shopRot; moved = false;
+        centre.setPointerCapture(id0); centre.classList.add('drag');
+        const j = centre.querySelector('.jersey');
+        if (j) { j.classList.remove('spin', 'anim'); j.style.setProperty('--rot', shopRot + 'deg'); }
+        shopSpin = false;
+        const b = document.getElementById('spinBtn'); if (b) b.setAttribute('aria-pressed', 'false');
+      });
+      centre.addEventListener('pointermove', e => {
+        if (e.pointerId !== id0) return;
+        const dx = e.clientX - x0;
+        if (Math.abs(dx) > 4) moved = true;
+        shopRot = r0 + dx * .7;
+        const j = centre.querySelector('.jersey'); if (j) j.style.setProperty('--rot', shopRot + 'deg');
+      });
+      const end = e => {
+        if (e.pointerId !== id0) return;
+        id0 = null; centre.classList.remove('drag');
+        if (moved) { centre.dataset.dragged = '1'; setTimeout(() => { delete centre.dataset.dragged; }, 0); }
+        setRot(Math.round(shopRot / 180) * 180, true);   // snap to the nearest face
+      };
+      centre.addEventListener('pointerup', end);
+      centre.addEventListener('pointercancel', end);
+    }
+  }
+
   // ---------- crest transition ----------
   function burst(card, id, go) {
     if (reduce) return go();
@@ -555,9 +911,11 @@ footer { border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; 
   let shotTimer = null;
   function route() {
     const h = (location.hash || '#home').slice(1);
-    app.innerHTML = h.startsWith('team-') ? V.team(h.slice(5)) : (V[h] || V.home)();
+    const inStore = h.startsWith('shop-');
+    app.innerHTML = h.startsWith('team-') ? V.team(h.slice(5)) : inStore ? V.store(h.slice(5)) : (V[h] || V.home)();
+    document.body.classList.toggle('shop', inStore || h === 'shop');
     document.querySelectorAll('#nav a').forEach(a => {
-      const on = a.getAttribute('href') === '#' + (h.startsWith('team-') ? 'teams' : h);
+      const on = a.getAttribute('href') === '#' + (h.startsWith('team-') ? 'teams' : inStore ? 'shop' : h);
       on ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current');
     });
     wire();
@@ -570,9 +928,10 @@ footer { border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; 
     const ts = document.getElementById('teamSel'), ss = document.getElementById('sortSel');
     if (ts) ts.onchange = e => { pTeam = e.target.value; route(); };
     if (ss) ss.onchange = e => { pSort = e.target.value; route(); };
-    app.querySelectorAll('[data-store]').forEach(b => b.addEventListener('click', e => {
-      e.preventDefault(); b.textContent = 'Store opens soon'; setTimeout(() => { b.textContent = 'Team Store · Soon'; }, 1600);
+    app.querySelectorAll('.scard').forEach(card => card.addEventListener('click', e => {
+      e.preventDefault(); storeBurst(card, card.dataset.shop, () => { location.hash = 'shop-' + card.dataset.shop; });
     }));
+    wireStore();
     clearInterval(shotTimer); shotTimer = null;
     const shots = document.getElementById('shots');
     if (shots && !reduce) {
