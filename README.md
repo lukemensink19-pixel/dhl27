@@ -1,10 +1,9 @@
-# DHL 27
+# Davinky Hockey League
 
-A 3D hockey game for the browser with the eight teams of the Davinky Hockey League.
+The league site — standings, rosters, every club's uniforms and the adidas
+Hometown Remix Classic — is at https://lukemensink19-pixel.github.io/dhl27/
 
-Play it at https://lukemensink19-pixel.github.io/dhl27/ (on a phone, turn it sideways).
+## DHL 27
 
-## League site
-
-The league's own site — standings, rosters, every club's uniforms and the adidas
-Hometown Remix Classic — is at https://lukemensink19-pixel.github.io/dhl27/league/
+The 3D hockey game, with all eight clubs, is at
+https://lukemensink19-pixel.github.io/dhl27/play/ (on a phone, turn it sideways).
